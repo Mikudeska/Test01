@@ -2,6 +2,7 @@ from django.http import HttpResponse
 from .resources import PersonResource
 from tablib import Dataset
 from rest_framework.views import APIView
+from rest_framework.parsers import JSONParser
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAdminUser
@@ -231,3 +232,49 @@ class PersonDetail(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+class RFIDSimulator(APIView):
+    parser_classes = [JSONParser]
+    
+    def post(self, request):
+        try:
+            # รับข้อมูลจาก Postman
+            simulated_tags = request.data.get('tags', [])
+            
+            if not simulated_tags:
+                return Response(
+                    {'error': 'No tags provided'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            results = []
+            for tag in simulated_tags:
+                epc = tag.get('epc')
+                if not epc:
+                    continue
+
+                try:
+                    # ค้นหาจาก RFID
+                    person = Person.objects.get(rfid=epc)
+                    person.verified = 2
+                    person.save()
+                    results.append({
+                        'epc': epc,
+                        'status': 'updated',
+                        'name': person.name,
+                        'new_status': person.verified
+                    })
+                except Person.DoesNotExist:
+                    results.append({
+                        'epc': epc,
+                        'status': 'not_found',
+                        'name': None
+                    })
+
+            return Response({'results': results}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
