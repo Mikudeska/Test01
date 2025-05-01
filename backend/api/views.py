@@ -5,7 +5,6 @@ from rest_framework.views import APIView
 from rest_framework.parsers import JSONParser
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAdminUser
 from .models import Person
 from .serializers import PersonSerializer
 from django.db import transaction, connection
@@ -135,18 +134,15 @@ class ImportData(APIView):
         dataset = Dataset()
         resource = PersonResource()
 
-        # อ่านไฟล์ Excel/CSV
         if file.name.endswith('.xlsx'):
             dataset.load(file.read(), format='xlsx')
         elif file.name.endswith('.csv'):
             dataset.load(file.read().decode('utf-8-sig'), format='csv')
 
-        # Import ข้อมูล
         result = resource.import_data(dataset, dry_run=False)
         
         if result.has_errors():
             return Response({'error': 'พบข้อผิดพลาดในข้อมูล'}, status=400)
-        
         return Response({'success': 'นำเข้าข้อมูลสำเร็จ'})
 
 class StatsView(APIView):
@@ -200,7 +196,6 @@ class PersonList(APIView):
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
 
 class PersonDetail(APIView):
     def get(self, request, pk):
@@ -238,7 +233,6 @@ class RFIDSimulator(APIView):
     
     def post(self, request):
         try:
-            # รับข้อมูลจาก Postman
             simulated_tags = request.data.get('tags', [])
             
             if not simulated_tags:
@@ -254,20 +248,29 @@ class RFIDSimulator(APIView):
                     continue
 
                 try:
-                    # ค้นหาจาก RFID
                     person = Person.objects.get(rfid=epc)
-                    person.verified = 2
-                    person.save()
-                    results.append({
-                        'epc': epc,
-                        'status': 'updated',
-                        'name': person.name,
-                        'new_status': person.verified
-                    })
+                    
+                    # ตรวจสอบสถานะก่อนอัปเดต
+                    if person.verified == 1:
+                        results.append({
+                            'epc': epc,
+                            'name': person.name,
+                            'message': 'แท็กนี้ถูกสแกนแล้ว',
+                        })
+                    else:
+                        # อัปเดตสถานะเป็น 2 ถ้ายังไม่เคยสแกน
+                        person.verified = 1
+                        person.save()
+                        results.append({
+                            'epc': epc,
+                            'name': person.name,
+                            'message': 'อัปเดตสถานะสำเร็จ',
+                        })
+                        
                 except Person.DoesNotExist:
                     results.append({
                         'epc': epc,
-                        'status': 'not_found',
+                        'message': 'ไม่พบข้อมูลแท็กนี้ในระบบ',
                         'name': None
                     })
 

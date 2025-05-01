@@ -113,8 +113,8 @@ const scrollToBottom = () => {
     <div class="flex flex-col">
         <!-- ส่วนแสดงวันที่และเวลา -->
         <div class="card flex flex-row md:flex-row items-center justify-between mb-[2rem] gap-2 divide-x-4 divide-indigo-600">
-            <div class="flex-1 text-center text-1xl sm:text-2xl md:text-3xl xl:text-4xl">{{ displayDateString }}</div>
-            <div class="flex items-center justify-center flex-1 gap-2 text-2xl sm:text-4xl md:text-6xl">
+            <div class="flex-1 text-center text-1xl sm:text-2xl md:text-3xl xl:text-5xl">{{ displayDateString }}</div>
+            <div class="flex items-center justify-center flex-1 gap-2 text-2xl sm:text-5xl md:text-7xl">
                 <Icon icon="material-symbols:alarm-outline-rounded"></Icon>
                 <span>{{ displayTimeString }}</span>
             </div>
@@ -131,25 +131,25 @@ const scrollToBottom = () => {
                             index % 4 === 0
                                 ? 'hover:border-b-8 hover:border-blue-500 rounded-lg'
                                 : index % 4 === 1
-                                ? 'hover:border-b-8 hover:border-red-500 rounded-lg6'
-                                : index % 4 === 2
-                                ? 'hover:border-b-8 hover:border-green-500 rounded-lg'
-                                : 'hover:border-b-8 hover:border-yellow-300 rounded-lg'
+                                  ? 'hover:border-b-8 hover:border-red-500 rounded-lg6'
+                                  : index % 4 === 2
+                                    ? 'hover:border-b-8 hover:border-green-500 rounded-lg'
+                                    : 'hover:border-b-8 hover:border-yellow-300 rounded-lg'
                         ]"
                     >
-                        <h2 class="pb-2 text-xl text-center border-b-2 border-indigo-600 xl:text-2xl">
+                        <h2 class="pb-2 text-xl text-center border-b-2 border-indigo-600 xl:text-4xl">
                             {{ feat.title }}
                         </h2>
-                        <span class="flex items-center justify-around flex-grow pt-4 text-4xl xl:text-6xl"> {{ feat.description }} </span>
+                        <span class="flex items-center justify-around flex-grow pt-4 text-4xl xl:text-8xl"> {{ feat.description }} </span>
                     </div>
                 </div>
             </div>
             <!-- ส่วนแสดงคอมเมนต์ -->
             <div class="col-span-12 md:col-span-4">
                 <div class="card h-[calc(100vh-100px)] max-h-[calc(100vh-230px)] xl:max-h-[calc(100vh-300px)] overflow-auto" ref="commentsContainer">
-                    <div class="pb-2 text-2xl">Comments</div>
-                    <div v-for="(comment, index) in comments" :key="index" class="pt-2 mb-2 border-t-2 border-indigo-600">
-                        <p class="w-full text-xs text-center">
+                    <div class="pb-2 text-4xl">Comments</div>
+                    <div v-for="(comment, index) in comments" :key="index" class="pt-2 mb-4 border-t-2 border-indigo-600">
+                        <p class="w-full mb-2 text-lg text-center">
                             {{
                                 new Date(comment.time).toLocaleString('th-TH', {
                                     dateStyle: 'short'
@@ -161,7 +161,7 @@ const scrollToBottom = () => {
                                 })
                             }}
                         </p>
-                        <p class="flex-col w-full px-2 text-lg break-words">
+                        <p class="flex-col w-full px-2 text-2xl break-words">
                             {{ comment.comment }}
                         </p>
                     </div>
@@ -198,7 +198,6 @@ const UploadDialog = ref(false);
 const ExportDialog = ref(false);
 const deleteProductDialog = ref(false);
 const deletepersonsDialog = ref(false);
-const resetDialog = ref(false);
 
 const product = ref({});
 const selectedpersons = ref();
@@ -209,6 +208,78 @@ const submitted = ref(false);
 const loading = ref(false);
 const filteredVerified = ref(null);
 
+// รีเซ็ตข้อมูล
+const confirmResetDialog1 = ref(false);
+const confirmResetDialog2 = ref(false);
+const resetKeyword = ref('');
+
+const confirmResetdatabase = () => {
+    confirmResetDialog1.value = true;
+};
+
+const handleResetStep1 = () => {
+    confirmResetDialog1.value = false;
+    confirmResetDialog2.value = true;
+};
+
+const handleResetStep2 = async () => {
+    if (resetKeyword.value.toUpperCase() !== 'RESET') {
+        toast.add({
+            severity: 'error',
+            summary: 'ยืนยันไม่สำเร็จ',
+            detail: 'กรุณาพิมพ์คำว่า "RESET" ให้ถูกต้อง',
+            life: 3000
+        });
+        resetKeyword.value = '';
+        return;
+    }
+    try {
+        await axios.post('http://localhost:8000/api/reset/');
+        await fetchPersons();
+        toast.add({
+            severity: 'success',
+            summary: 'รีเซ็ตสำเร็จ',
+            detail: 'ลบข้อมูลทั้งหมดเรียบร้อย',
+            life: 5000
+        });
+    } catch (error) {
+        toast.add({
+            severity: 'error',
+            summary: 'รีเซ็ตล้มเหลว',
+            detail: error.response?.data?.error || 'เกิดข้อผิดพลาด',
+            life: 5000
+        });
+    } finally {
+        confirmResetDialog2.value = false;
+        resetKeyword.value = '';
+    }
+};
+
+const exportPDF = async () => {
+    try {
+        const response = await axios.get('http://localhost:8000/api/export-pdf/', {
+            responseType: 'blob',
+            timeout: 30000
+        });
+
+        // ตรวจสอบขนาดไฟล์
+        if (response.data.size < 1024) {
+            throw new Error('ไฟล์ PDF ว่างเปล่า');
+        }
+
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', 'รายชื่อบัณฑิต.pdf');
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+    } catch (error) {
+        console.error('PDF Export Error:', error);
+        alert('ส่งออก PDF ไม่สำเร็จ: ' + error.message);
+    }
+};
+
 // Export ข้อมูล
 const exportData = async (format) => {
     try {
@@ -218,7 +289,7 @@ const exportData = async (format) => {
         const url = window.URL.createObjectURL(new Blob([response.data]));
         const link = document.createElement('a');
         link.href = url;
-        link.setAttribute('download', `persons.${format}`);
+        link.setAttribute('download', `persons${format}.${format}`);
         document.body.appendChild(link);
         link.click();
         link.remove();
@@ -227,21 +298,66 @@ const exportData = async (format) => {
     }
 };
 
-// Import ข้อมูล
-const handleFileUpload = async (event) => {
-    const file = event.target.files[0];
+// อัพโหลด
+const file = ref(null);
+const progress = ref(0);
+const visible = ref(false);
+const interval = ref(null);
+const uploadInProgress = ref(false);
+
+const handleFileSelect = (event) => {
+    file.value = event.target.files[0];
+};
+
+const handleFileUpload = async () => {
+    if (!file.value) {
+        alert('กรุณาเลือกไฟล์ก่อน');
+        return;
+    }
+
+    uploadInProgress.value = true;
+    visible.value = true;
+    progress.value = 0;
+
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', file.value);
 
     try {
         await axios.post('http://localhost:8000/api/import/', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
+            headers: { 'Content-Type': 'multipart/form-data' },
+            onUploadProgress: (progressEvent) => {
+                progress.value = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            }
         });
-        alert('นำเข้าข้อมูลสำเร็จ');
-        await fetchPersons(); // ดึงข้อมูลใหม่
+
+        toast.add({
+            severity: 'success',
+            summary: 'อัปโหลดสำเร็จ',
+            detail: 'นำเข้าข้อมูลเรียบร้อย',
+            life: 5000
+        });
+
+        await fetchPersons();
     } catch (error) {
-        alert('นำเข้าข้อมูลล้มเหลว');
+        toast.add({
+            severity: 'error',
+            summary: 'อัปโหลดล้มเหลว',
+            detail: error.response?.data?.error || 'เกิดข้อผิดพลาด',
+            life: 5000
+        });
+    } finally {
+        uploadInProgress.value = false;
+        file.value = null;
+        UploadDialog.value = false;
     }
+};
+
+const cancelUpload = () => {
+    if (interval.value) clearInterval(interval.value);
+    visible.value = false;
+    progress.value = 0;
+    file.value = null;
+    uploadInProgress.value = false;
 };
 
 // กรองคนรายงานตัว
@@ -343,10 +459,6 @@ function confirmDeleteSelected() {
     deletepersonsDialog.value = true;
 }
 
-function confirmResetdatabase() {
-    resetDialog.value = true;
-}
-
 function confirmDeleteProduct(prod) {
     product.value = { ...prod };
     deleteProductDialog.value = true;
@@ -410,11 +522,6 @@ const items = ref([
         }
     }
 ]);
-
-function exportCSV() {
-    dt.value.exportCSV();
-    ExportDialog.value = false;
-}
 </script>
 
 <template>
@@ -595,19 +702,48 @@ function exportCSV() {
             </template>
         </Dialog>
 
-        <Dialog v-model:visible="UploadDialog" header="อัปโหลด" :modal="true">
-            <div class="flex flex-col items-center justify-center gap-6 card">
-                <input type="file" accept=".xlsx,.csv" @change="handleFileUpload" style="display: none" ref="fileInput" />
-                <Button @click="$refs.fileInput.click()"> <Icon icon="lets-icons:import" /> Import </Button>
+        <Dialog v-model:visible="UploadDialog" header="อัปโหลดไฟล์" :modal="true" :closable="!uploadInProgress">
+            <div class="flex flex-col items-center gap-4">
+                <!-- แสดงชื่อไฟล์ -->
+                <div class="py-2 border-l-4 border-primary-700 bg-primary-400 card">
+                    <div v-if="file" class="flex items-center text-black">
+                        <Icon icon="clarity:file-line" class="text-4xl" />
+                        <p class="font-bold break-all">{{ file.name }}</p>
+                    </div>
+                </div>
+
+                <!-- ปุ่มเลือกไฟล์ -->
+                <input type="file" accept=".xlsx,.csv" @change="handleFileSelect" ref="fileInput" hidden />
+                <Button @click="$refs.fileInput.click()" :disabled="uploadInProgress">
+                    <Icon icon="lets-icons:import" />
+                    {{ file ? 'เปลี่ยนไฟล์' : 'เลือกไฟล์' }}
+                </Button>
+
+                <!-- Progress Bar -->
+                <ProgressBar v-if="uploadInProgress" :value="progress" :showValue="false" class="w-full" style="height: 4px" />
             </div>
+
             <template #footer>
-                <Button label="ยกเลิก" icon="pi pi-times" text @click="UploadDialog = false" severity="danger" />
-                <Button label="ยืนยัน" icon="pi pi-check" text @click="handleFileUpload" />
+                <Button label="ยกเลิก" icon="pi pi-times" @click="cancelUpload, (UploadDialog = false)" severity="danger" :disabled="uploadInProgress" />
+                <Button label="ยืนยัน" icon="pi pi-check" @click="handleFileUpload" :loading="uploadInProgress" :disabled="!file || uploadInProgress" />
             </template>
         </Dialog>
 
+        <!-- Toast Notification -->
+        <Toast position="top-center" group="crud">
+            <template #message="slotProps">
+                <div class="flex items-center gap-3">
+                    <Icon :icon="slotProps.message.severity === 'success' ? 'line-md:confirm-circle-twotone' : 'line-md:close-circle-twotone'" class="text-2xl" />
+                    <div>
+                        <p class="font-bold">{{ slotProps.message.summary }}</p>
+                        <p class="text-sm">{{ slotProps.message.detail }}</p>
+                    </div>
+                </div>
+            </template>
+        </Toast>
+
         <Dialog v-model:visible="ExportDialog" header="โหลดไฟล์" :modal="true">
-            <div class="flex flex-col items-center justify-center gap-6 card">
+            <div class="flex items-center justify-center">
                 <Button severity="secondary" class="mr-2" @click="exportData('xlsx')" rounded raised>
                     <Icon icon="vscode-icons:file-type-excel"></Icon>
                     <span>โหลดไฟล์เป็น Excel</span>
@@ -621,6 +757,37 @@ function exportCSV() {
                     <span>โหลดไฟล์เป็น PDF</span>
                 </Button>
             </div>
+        </Dialog>
+
+        <!-- Dialog ยืนยันขั้นที่ 1 -->
+        <Dialog v-model:visible="confirmResetDialog1" header="ยืนยันการรีเซ็ต" :modal="true" :style="{ width: '500px' }">
+            <div class="flex items-center gap-4 p-4">
+                <Icon icon="bi:exclamation-triangle-fill" class="text-yellow-300" />
+                <div>
+                    <h3 class="mb-2 text-lg font-bold">คุณแน่ใจที่จะรีเซ็ตฐานข้อมูลทั้งหมด?</h3>
+                    <p class="text-black">การกระทำนี้จะลบข้อมูลทุกรายการและไม่สามารถกู้คืนได้</p>
+                </div>
+            </div>
+            <template #footer>
+                <Button label="ยกเลิก" icon="pi pi-times" @click="confirmResetDialog1 = false" severity="secondary" text />
+                <Button label="ดำเนินการต่อ" icon="pi pi-arrow-right" @click="handleResetStep1" severity="danger" />
+            </template>
+        </Dialog>
+
+        <!-- Dialog ยืนยันขั้นที่ 2 -->
+        <Dialog v-model:visible="confirmResetDialog2" header="ยืนยันขั้นสุดท้าย" :modal="true" :style="{ width: '500px' }">
+            <div class="flex flex-col gap-4 p-4">
+                <div class="flex items-center gap-4">
+                    <Icon icon="teenyicons:shield-solid" class="text-3xl text-red-500" />
+                    <h3 class="text-lg font-bold">กรุณาพิมพ์คำว่า "RESET"</h3>
+                </div>
+
+                <InputText v-model="resetKeyword" placeholder="พิมพ์คำว่า RESET ที่นี่" class="w-full" autocomplete="off" @keyup.enter="handleResetStep2" />
+            </div>
+            <template #footer>
+                <Button label="ยกเลิก" icon="pi pi-times" @click="confirmResetDialog2 = false" severity="secondary" text />
+                <Button label="ยืนยันรีเซ็ต" icon="pi pi-check" @click="handleResetStep2" :disabled="resetKeyword.toUpperCase() !== 'RESET'" severity="danger" />
+            </template>
         </Dialog>
 
         <Dialog v-model:visible="deleteProductDialog" header="ยืนยันการลบ" :modal="true">
@@ -647,17 +814,6 @@ function exportCSV() {
                 <Button label="Yes" icon="pi pi-check" text @click="deleteSelectedpersons" />
             </template>
         </Dialog>
-
-        <Dialog v-model:visible="resetDialog" header="การยืนยัน" :modal="true">
-            <div class="flex items-center gap-4">
-                <i class="pi pi-exclamation-triangle !text-3xl" />
-                <span v-if="product">แน่ใจว่าจะรีเซ็ตข้อมูลทั้งหมด ?</span>
-            </div>
-            <template #footer>
-                <Button label="No" icon="pi pi-times" text @click="deletepersonsDialog = false" severity="danger" />
-                <Button label="Yes" icon="pi pi-check" text @click="deleteSelectedpersons" />
-            </template>
-        </Dialog>
     </div>
 </template>
 
@@ -667,6 +823,7 @@ function exportCSV() {
     height: 18px;
 }
 </style>
+
 
 models.py
 from django.db import models
@@ -720,15 +877,17 @@ class Person(models.Model):
         )
 
 views.py
-from django.http import HttpResponse, StreamingHttpResponse
+from django.http import HttpResponse
 from .resources import PersonResource
 from tablib import Dataset
 from rest_framework.views import APIView
+from rest_framework.parsers import JSONParser
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import IsAdminUser
 from .models import Person
 from .serializers import PersonSerializer
-from django.db import transaction
+from django.db import transaction, connection
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
@@ -736,6 +895,29 @@ from reportlab.lib.pagesizes import A4
 import urllib.parse
 import os
 import io
+
+class ResetDatabase(APIView):
+    def post(self, request):
+        try:
+            with transaction.atomic():
+                # 1. ลบข้อมูลทั้งหมด
+                Person.objects.all().delete()
+                
+                # 2. รีเซ็ต AUTO_INCREMENT (MySQL เท่านั้น)
+                if 'mysql' in connection.settings_dict['ENGINE']:
+                    cursor = connection.cursor()
+                    table_name = Person._meta.db_table  # ดึงชื่อตารางจริงจากโมเดล
+                    cursor.execute(f"ALTER TABLE {table_name} AUTO_INCREMENT = 1;")
+                
+                return Response(
+                    {'success': 'รีเซ็ตฐานข้อมูลสำเร็จ'}, 
+                    status=status.HTTP_200_OK
+                )
+        except Exception as e:
+            return Response(
+                {'error': str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class ExportPDF(APIView):
     def get(self, request):
@@ -929,37 +1111,64 @@ class PersonDetail(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+class RFIDSimulator(APIView):
+    parser_classes = [JSONParser]
+    
+    def post(self, request):
+        try:
+            simulated_tags = request.data.get('tags', [])
+            
+            if not simulated_tags:
+                return Response(
+                    {'error': 'No tags provided'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
-resource.py
-# backend/api/resources.py
-from import_export import resources, fields
-from .models import Person
+            results = []
+            for tag in simulated_tags:
+                epc = tag.get('epc')
+                if not epc:
+                    continue
 
-class PersonResource(resources.ModelResource):
-    formatted_id = fields.Field(attribute='id', column_name='ลำดับ')
-    name = fields.Field(attribute='name', column_name='ชื่อ-นามสกุล')
-    nisit = fields.Field(attribute='nisit', column_name='รหัสนิสิต')
-    degree = fields.Field(attribute='degree', column_name='ชื่อปริญญา')
-    seat = fields.Field(attribute='seat', column_name='ที่นั่ง')
-    verified = fields.Field(attribute='verified', column_name='สถานะรายงานตัว')
-    rfid = fields.Field(attribute='rfid', column_name='รหัส RFID')
+                try:
+                    person = Person.objects.get(rfid=epc)
+                    
+                    # ตรวจสอบสถานะก่อนอัปเดต
+                    if person.verified == 1:
+                        results.append({
+                            'epc': epc,
+                            'name': person.name,
+                            'message': 'แท็กนี้ถูกสแกนแล้ว',
+                        })
+                    else:
+                        # อัปเดตสถานะเป็น 2 ถ้ายังไม่เคยสแกน
+                        person.verified = 1
+                        person.save()
+                        results.append({
+                            'epc': epc,
+                            'name': person.name,
+                            'message': 'อัปเดตสถานะสำเร็จ',
+                        })
+                        
+                except Person.DoesNotExist:
+                    results.append({
+                        'epc': epc,
+                        'message': 'ไม่พบข้อมูลแท็กนี้ในระบบ',
+                        'name': None
+                    })
 
-    class Meta:
-        model = Person
-        export_order = [
-            'formatted_id', 
-            'nisit', 
-            'name', 
-            'degree', 
-            'seat', 
-            'verified', 
-            'rfid'
-        ]
-        import_id_fields = ['nisit']
+            return Response({'results': results}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 urls.py 
 from django.urls import path
-from .views import PersonList, PersonDetail, StatsView, ExportData, ImportData, ExportPDF
+from .views import PersonList, PersonDetail, StatsView, ExportData, ImportData, ExportPDF, ResetDatabase, RFIDSimulator
 
 urlpatterns = [
     path('person/', PersonList.as_view(), name='person-list'),
@@ -969,4 +1178,7 @@ urlpatterns = [
     path('export/<str:format_type>/', ExportData.as_view()),
     path('import/', ImportData.as_view()),
     path('export-pdf/', ExportPDF.as_view()),
+    path('reset/', ResetDatabase.as_view(), name='reset-database'),
+    path('simulate-rfid/', RFIDSimulator.as_view(), name='simulate-rfid'),
 ]
+
