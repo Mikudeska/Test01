@@ -29,6 +29,11 @@ const router = createRouter({
                     component: () => import('@/views/uikit/Crud01.vue')
                 },
                 {
+                    path: '/uikit/logs',
+                    name: 'logs',
+                    component: () => import('@/views/uikit/Logs.vue')
+                },
+                {
                     path: '/uikit/input',
                     name: 'input',
                     component: () => import('@/views/uikit/InputDoc.vue')
@@ -73,11 +78,6 @@ const router = createRouter({
                     path: '/uikit/message',
                     name: 'message',
                     component: () => import('@/views/uikit/MessagesDoc.vue')
-                },
-                {
-                    path: '/uikit/file',
-                    name: 'file',
-                    component: () => import('@/views/uikit/FileDoc.vue')
                 },
                 {
                     path: '/uikit/menu',

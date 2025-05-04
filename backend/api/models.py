@@ -1,6 +1,5 @@
-from django.db import models
+from django.db import models, transaction
 from django.utils import timezone
-from django.db import transaction
 import random
 
 class Person(models.Model):
@@ -47,3 +46,24 @@ class Person(models.Model):
             f"นั่งที่ {self.seat} "
             f"เมื่อ {local_date.strftime('%d/%m/%Y %H:%M:%S')}"
         )
+
+class Log(models.Model):
+    ACTION_CHOICES = [
+        ('add', 'Add'),
+        ('edit', 'Edit'),
+        ('delete', 'Delete'),
+        ('import', 'Import'),
+        ('export', 'Export'),
+        ('reset', 'Reset'),
+        ('rfid_scan', 'RFID Scan'),
+    ]
+    
+    action = models.CharField(max_length=10, choices=ACTION_CHOICES)
+    model = models.CharField(max_length=50)
+    details = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+    record_id = models.CharField(max_length=100, blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.timestamp} - {self.action} - {self.model}"
+    
