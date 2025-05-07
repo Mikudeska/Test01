@@ -104,19 +104,42 @@ const getVerifiedIcon = (value) => {
 
 // ฟังก์ชันจัดการสี verified
 const getVerifiedColor = (value) => {
-    if (value === 1) return 'text-green-500';
-    if (value === 0) return 'text-red-500';
-    if (value === 2) return 'text-yellow-300';
-    return 'text-gray-400'; // สีสำรองหากมีค่าอื่น
+    // ตรวจสอบชนิดข้อมูลของ value
+    const status = Number(value);
+    if (status === 1) return 'text-green-500';
+    if (status === 0) return 'text-red-500';
+    if (status === 2) return 'text-yellow-500'; // เปลี่ยนจาก yellow-300 เป็น yellow-500
+    return 'text-gray-400';
 };
 
 const fetchLogs = async () => {
     try {
-        const response = await axios.get('http://127.0.0.1:8000/api/logs/');
-        const rawData = response?.data?.results || response?.data || [];
-        logs.value = rawData.filter((log) => log !== null);
+        let allLogs = [];
+        let nextUrl = 'http://127.0.0.1:8000/api/logs/';
+
+        while (nextUrl) {
+            const response = await axios.get(nextUrl);
+            const data = response.data;
+
+            // ตรวจสอบโครงสร้างข้อมูล
+            const pageLogs = data.results || data;
+
+            // กรอง null และเพิ่มข้อมูล
+            allLogs.push(...pageLogs.filter((log) => log !== null));
+
+            // อัพเดท URL ถัดไป (รองรับทั้ง relative และ absolute URL)
+            nextUrl = data.next?.replace('http://localhost:8000', '') || data.next;
+        }
+
+        logs.value = allLogs;
     } catch (error) {
         console.error('Error fetching logs:', error);
+        toast.add({
+            severity: 'error',
+            summary: 'เกิดข้อผิดพลาด',
+            detail: 'ดึงข้อมูลไม่สำเร็จ',
+            life: 3000
+        });
     }
 };
 
@@ -298,24 +321,5 @@ onUnmounted(() => {
 <style scoped>
 .card {
     height: calc(100vh - 150px); /* ลดความสูงเพื่อให้พอดีกับ paginator */
-}
-
-:deep(.p-datatable) {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
-
-:deep(.p-datatable-wrapper) {
-    flex: 1;
-    overflow: auto;
-}
-
-:deep(.p-paginator) {
-    margin-top: auto;
-    position: sticky;
-    bottom: 0;
-    z-index: 1;
 }
 </style>

@@ -368,25 +368,21 @@ class PersonDetail(APIView):
             serializer = PersonSerializer(person, data=request.data)
             if serializer.is_valid():
                 serializer.save()
-                person.refresh_from_db()  # โหลดข้อมูลใหม่จาก DB
-            
-                # ตรวจสอบฟิลด์ที่เปลี่ยนแปลง
+                person.refresh_from_db()
                 changes = []
                 for field in ['name', 'degree', 'seat', 'verified', 'rfid']:
                     old_val = original_data[field]
                     new_val = getattr(person, field)
                     if old_val != new_val:
-                        changes.append(f"{field}::{old_val}::{new_val}")  # ใช้ :: เป็นตัวแบ่งข้อมูล
-            
-                # สร้างข้อความ Log
-                log_message = " | ".join(changes)
-            
-                Log.objects.create(
-                    action='Edit',
-                    model='Person',
-                    details=log_message, 
-                    record_id=person.id
-                )
+                        changes.append(f"{field}::{old_val}::{new_val}")
+                if changes:
+                    log_message = " | ".join(changes)
+                    Log.objects.create(
+                        action='Edit',
+                        model='Person',
+                        details=log_message, 
+                        record_id=person.id
+                    )
                 return Response(serializer.data, status=status.HTTP_200_OK)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Person.DoesNotExist:
